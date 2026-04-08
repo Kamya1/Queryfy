@@ -10,3 +10,4 @@ python-docx
 python-pptx
 requests==2.31.0
 protobuf==3.20.3
+google-generativeai==0.3.2

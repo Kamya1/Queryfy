@@ -9,3 +9,4 @@ gunicorn==21.2.0
 python-docx
 python-pptx
 requests==2.31.0
+protobuf==3.20.3

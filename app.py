@@ -1,25 +1,22 @@
+from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, request, render_template, send_file, jsonify
 from io import BytesIO
 from PyPDF2 import PdfReader
 from fpdf import FPDF
-import unicodedata
 import os
-import re
 import time
 from functools import wraps
 import requests
 from docx import Document
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from pptx import Presentation
-import json
 
 app = Flask(__name__)
-CORS(app) 
-# Rate limiting
+CORS(app)
+
+# ---------------- RATE LIMIT ----------------
 request_count = {}
 RATE_LIMIT = 50
 
@@ -41,13 +38,10 @@ def rate_limit(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# API KEYS
+# ---------------- API KEY ----------------
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-GOOGLE_FORMS_ENABLED = False
-
 # ---------------- FILE EXTRACTION ----------------
-
 def extract_text_from_pdf(file_path):
     reader = PdfReader(file_path)
     text = ""
@@ -83,9 +77,11 @@ def extract_text_from_file(path, filename):
     return ""
 
 # ---------------- GROQ ----------------
-
 def generate_with_groq(prompt, query):
     try:
+        if not GROQ_API_KEY:
+            return "❌ GROQ API KEY NOT SET"
+
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={
@@ -93,7 +89,7 @@ def generate_with_groq(prompt, query):
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama-3.3-70b-versatile",
+                "model": "llama3-70b-8192",  # ✅ FIXED MODEL
                 "messages": [
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": query}
@@ -103,31 +99,28 @@ def generate_with_groq(prompt, query):
         )
 
         if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"]
+            data = response.json()
+            print("API RESPONSE:", data)
+            return data.get("choices", [{}])[0].get("message", {}).get("content", "No output")
+
         else:
-            print(response.text)
+            print("ERROR:", response.text)
             return "Error generating content"
 
     except Exception as e:
-        print(e)
+        print("EXCEPTION:", e)
         return "Error"
 
 # ---------------- GENERATION ----------------
-
 def generate_questions_with_answers(prompt, qtype, num):
     system = "You are an expert teacher. Generate questions with answers."
-
     query = f"Create {num} {qtype} questions with answers from:\n{prompt}"
-
-    result = generate_with_groq(system, query)
-    return result
+    return generate_with_groq(system, query)
 
 # ---------------- PDF ----------------
-
-def save_questions_to_pdf(text, subject, marks):
+def save_questions_to_pdf(text):
     pdf = FPDF()
     pdf.add_page()
-
     pdf.set_font("Arial", size=12)
 
     for line in text.split("\n"):
@@ -139,7 +132,6 @@ def save_questions_to_pdf(text, subject, marks):
     return output
 
 # ---------------- ROUTES ----------------
-
 @app.route('/')
 def index():
     return "Backend Running ✅"
@@ -147,39 +139,39 @@ def index():
 @app.route('/generate', methods=['POST'])
 @rate_limit
 def generate():
-    file = request.files.get("pdf_file")
+    try:
+        file = request.files.get("pdf_file")
 
-    if not file:
-        return "No file", 400
+        if not file:
+            return "No file uploaded", 400
 
-    filename = file.filename
-    temp = "temp_" + filename
-    file.save(temp)
+        filename = file.filename
+        temp_path = "temp_" + filename
+        file.save(temp_path)
 
-    text = extract_text_from_file(temp, filename)
+        text = extract_text_from_file(temp_path, filename)
 
-    questions = generate_questions_with_answers(
-        text,
-        request.form.get("question_type", "mcq"),
-        int(request.form.get("num_questions", 5))
-    )
+        questions = generate_questions_with_answers(
+            text,
+            request.form.get("question_type", "MCQ"),
+            int(request.form.get("num_questions", 5))
+        )
 
-    pdf = save_questions_to_pdf(
-        questions,
-        request.form.get("subject", "General"),
-        request.form.get("marks", "100")
-    )
+        pdf = save_questions_to_pdf(questions)
 
-    os.remove(temp)
+        os.remove(temp_path)
 
-    return send_file(pdf, download_name="questions.pdf", as_attachment=True)
+        return send_file(pdf, download_name="questions.pdf", as_attachment=True)
+
+    except Exception as e:
+        print("ERROR IN /generate:", e)
+        return "Server Error", 500
 
 @app.route('/health')
 def health():
     return jsonify({"status": "ok"})
 
 # ---------------- RUN ----------------
-
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

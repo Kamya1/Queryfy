@@ -80,7 +80,7 @@ def extract_text_from_file(path, filename):
 def generate_with_groq(prompt, query):
     try:
         if not GROQ_API_KEY:
-            return "❌ GROQ API KEY NOT SET"
+            return "❌ API KEY NOT SET"
 
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -89,7 +89,7 @@ def generate_with_groq(prompt, query):
                 "Content-Type": "application/json"
             },
             json={
-                "model":"llama-3.1-8b-instant",  # ✅ FIXED MODEL
+                "model": "llama-3.1-8b-instant",  # ✅ WORKING MODEL
                 "messages": [
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": query}
@@ -98,18 +98,26 @@ def generate_with_groq(prompt, query):
             }
         )
 
-        if response.status_code == 200:
-            data = response.json()
-            print("API RESPONSE:", data)
-            return data.get("choices", [{}])[0].get("message", {}).get("content", "No output")
+        data = response.json()
+        print("FULL API RESPONSE:", data)
 
-        else:
-            print("ERROR:", response.text)
-            return "Error generating content"
+        # ✅ HANDLE ALL CASES
+        if response.status_code != 200:
+            return f"❌ API ERROR: {data}"
+
+        if "choices" not in data:
+            return f"❌ INVALID RESPONSE: {data}"
+
+        content = data["choices"][0]["message"]["content"]
+
+        if not content or content.strip() == "":
+            return "❌ EMPTY RESPONSE FROM AI"
+
+        return content
 
     except Exception as e:
         print("EXCEPTION:", e)
-        return "Error"
+        return f"❌ EXCEPTION: {str(e)}"
 
 # ---------------- GENERATION ----------------
 def generate_questions_with_answers(prompt, qtype, num):
@@ -123,20 +131,16 @@ def save_questions_to_pdf(text):
     pdf.add_page()
     pdf.set_font("Arial", size=12)
 
-    # ✅ HANDLE ERROR CASE
-    if "❌" in text or text.strip() == "":
-        text = "Error: Could not generate questions. Please try again."
+    # ✅ Clean text
+    if "❌" in text:
+        text = "Error occurred while generating questions.\n\n" + text
 
     for line in text.split("\n"):
         pdf.multi_cell(0, 8, line)
 
-    # ✅ CORRECT BYTE GENERATION
     pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
-    output = BytesIO(pdf_bytes)
-    output.seek(0)
-
-    return output
+    return BytesIO(pdf_bytes)
 # ---------------- ROUTES ----------------
 @app.route('/')
 def index():

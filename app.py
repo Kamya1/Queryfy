@@ -126,9 +126,12 @@ def save_questions_to_pdf(text):
     for line in text.split("\n"):
         pdf.multi_cell(0, 8, line)
 
-    output = BytesIO()
-    pdf.output(output)
+    # ✅ FIX HERE
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+
+    output = BytesIO(pdf_bytes)
     output.seek(0)
+
     return output
 
 # ---------------- ROUTES ----------------

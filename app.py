@@ -18,7 +18,7 @@ from pptx import Presentation
 import json
 
 app = Flask(__name__)
-
+CORS(app) 
 # Rate limiting
 request_count = {}
 RATE_LIMIT = 50

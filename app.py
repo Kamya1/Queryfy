@@ -89,7 +89,7 @@ def generate_with_groq(prompt, query):
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama3-70b-8192",  # ✅ FIXED MODEL
+                "model":"llama-3.1-8b-instant",  # ✅ FIXED MODEL
                 "messages": [
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": query}

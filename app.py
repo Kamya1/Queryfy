@@ -147,8 +147,10 @@ def generate():
         filename = file.filename
         temp_path = "temp_" + filename
         file.save(temp_path)
-
         text = extract_text_from_file(temp_path, filename)
+
+        # ✅ ADD THIS LINE (IMPORTANT FIX)
+        text = text[:4000]
 
         questions = generate_questions_with_answers(
             text,

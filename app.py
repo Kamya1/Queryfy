@@ -123,17 +123,20 @@ def save_questions_to_pdf(text):
     pdf.add_page()
     pdf.set_font("Arial", size=12)
 
+    # ✅ HANDLE ERROR CASE
+    if "❌" in text or text.strip() == "":
+        text = "Error: Could not generate questions. Please try again."
+
     for line in text.split("\n"):
         pdf.multi_cell(0, 8, line)
 
-    # ✅ FIX HERE
+    # ✅ CORRECT BYTE GENERATION
     pdf_bytes = pdf.output(dest='S').encode('latin-1')
 
     output = BytesIO(pdf_bytes)
     output.seek(0)
 
     return output
-
 # ---------------- ROUTES ----------------
 @app.route('/')
 def index():

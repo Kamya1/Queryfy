@@ -79,8 +79,8 @@ def extract_text_from_file(path, filename):
 # ---------------- GROQ ----------------
 def generate_with_groq(prompt, query):
     try:
-        if not GROQ_API_KEY:
-            return "❌ API KEY NOT SET"
+        print("===== DEBUG START =====")
+        print("API KEY:", GROQ_API_KEY)
 
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -89,35 +89,24 @@ def generate_with_groq(prompt, query):
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama-3.1-8b-instant",  # ✅ WORKING MODEL
+                "model": "llama-3.1-8b-instant",
                 "messages": [
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": query}
-                ],
-                "temperature": 0.7
+                ]
             }
         )
 
-        data = response.json()
-        print("FULL API RESPONSE:", data)
+        print("STATUS CODE:", response.status_code)
+        print("RAW RESPONSE:", response.text)
+        print("===== DEBUG END =====")
 
-        # ✅ HANDLE ALL CASES
-        if response.status_code != 200:
-            return f"❌ API ERROR: {data}"
-
-        if "choices" not in data:
-            return f"❌ INVALID RESPONSE: {data}"
-
-        content = data["choices"][0]["message"]["content"]
-
-        if not content or content.strip() == "":
-            return "❌ EMPTY RESPONSE FROM AI"
-
-        return content
+        # 👇 IMPORTANT: RETURN EXACT RESPONSE
+        return response.text
 
     except Exception as e:
         print("EXCEPTION:", e)
-        return f"❌ EXCEPTION: {str(e)}"
+        return str(e)
 
 # ---------------- GENERATION ----------------
 def generate_questions_with_answers(prompt, qtype, num):

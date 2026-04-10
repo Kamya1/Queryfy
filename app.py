@@ -79,8 +79,8 @@ def extract_text_from_file(path, filename):
 # ---------------- GROQ ----------------
 def generate_with_groq(prompt, query):
     try:
-        print("===== DEBUG START =====")
-        print("API KEY:", GROQ_API_KEY)
+        if not GROQ_API_KEY:
+            return "❌ GROQ API KEY NOT SET"
 
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -89,24 +89,32 @@ def generate_with_groq(prompt, query):
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama-3.1-8b-instant",
+                "model": "llama-3.1-8b-instant",  # ✅ stable + low tokens
                 "messages": [
                     {"role": "system", "content": prompt},
-                    {"role": "user", "content": query}
-                ]
+                    {"role": "user", "content": query[:4000]}  # ✅ limit size (IMPORTANT)
+                ],
+                "temperature": 0.7
             }
         )
 
-        print("STATUS CODE:", response.status_code)
-        print("RAW RESPONSE:", response.text)
-        print("===== DEBUG END =====")
+        # DEBUG (optional)
+        print("STATUS:", response.status_code)
 
-        # 👇 IMPORTANT: RETURN EXACT RESPONSE
-        return response.text
+        if response.status_code != 200:
+            print("ERROR:", response.text)
+            return "❌ Error from Groq API"
+
+        data = response.json()
+
+        # ✅ EXTRACT CLEAN TEXT ONLY
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+        return content.strip()
 
     except Exception as e:
         print("EXCEPTION:", e)
-        return str(e)
+        return "❌ Internal error"
 
 # ---------------- GENERATION ----------------
 def generate_questions_with_answers(prompt, qtype, num):
